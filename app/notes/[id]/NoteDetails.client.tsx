@@ -1,39 +1,41 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient, QueryClient, hydrate } from '@tanstack/react-query';
-import { useState } from 'react';
-import { fetchNoteById, deleteNote } from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'next/navigation';
+import { fetchNoteById } from '@/lib/api';
 import type { Note } from '@/types/note';
+import css from './NoteDetails.module.css';
 
-interface NoteDetailsClientProps {
-  noteId: string;
-  dehydratedState: unknown;
-}
-
-export default function NoteDetailsClient({ noteId, dehydratedState }: NoteDetailsClientProps) {
-  const [queryClient] = useState(() => new QueryClient());
-  const router = useRouter();
-  const queryClientHook = useQueryClient();
-
-  hydrate(queryClient, dehydratedState);
+export default function NoteDetailsClient() {
+  const { id } = useParams<{ id: string }>();
 
   const { data: note, isLoading, isError } = useQuery<Note>({
-    queryKey: ['note', noteId],
-    queryFn: () => fetchNoteById(noteId),
-    enabled: !!noteId,
+    queryKey: ['note', id],
+    queryFn: () => fetchNoteById(id),
+    enabled: !!id,
     refetchOnMount: false,
   });
 
-
-  if (isLoading) return <p>Loading...</p>;
-  if (isError || !note) return <p>Note not found</p>;
+  if (isLoading) return <p>Loading, please wait...</p>;
+  if (isError || !note) return <p>Something went wrong.</p>;
 
   return (
-    <div>
-      <h1>{note.title}</h1>
-      <p>{note.content}</p>
-      <span>{note.tag}</span>
+    <div className={css.container}>
+	   <div className={css.item}>
+	      <div className={css.header}>
+          <h2>{note.title}</h2>
+	      </div>
+        <p className={css.content}>{note.content}</p>
+        <p className={css.date}>
+          {new Date(note.createdAt).toLocaleString('en', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </p>
+      </div>
     </div>
   );
 }

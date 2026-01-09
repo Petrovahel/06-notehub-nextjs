@@ -1,8 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { QueryClient, QueryClientProvider, useQuery, hydrate, keepPreviousData } from '@tanstack/react-query';
-import { fetchNotes} from '@/lib/api';
+import {
+  QueryClient,
+  QueryClientProvider,
+  HydrationBoundary,
+  useQuery,
+  keepPreviousData,
+  DehydratedState
+} from '@tanstack/react-query';
+
+import { fetchNotes } from '@/lib/api';
 import NoteList from '@/components/NoteList/NoteList';
 import Pagination from '@/components/Pagination/Pagination';
 import SearchBox from '@/components/SearchBox/SearchBox';
@@ -14,18 +22,26 @@ import { useDebouncedCallback } from 'use-debounce';
 import css from './NotesPage.module.css';
 
 type NotesClientProps = {
-  dehydratedState: ReturnType<typeof import('@tanstack/react-query').dehydrate>;
+  dehydratedState: DehydratedState | null;
 };
 
 export default function NotesClient({ dehydratedState }: NotesClientProps) {
   const [queryClient] = useState(() => new QueryClient());
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <HydrationBoundary state={dehydratedState}>
+        <NotesContent />
+      </HydrationBoundary>
+    </QueryClientProvider>
+  );
+}
+
+function NotesContent() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
   const [showModal, setShowModal] = useState(false);
   const perPage = 12;
-
-  hydrate(queryClient, dehydratedState);
 
   const debouncedSearch = useDebouncedCallback((value: string) => {
     setSearch(value);
@@ -35,41 +51,37 @@ export default function NotesClient({ dehydratedState }: NotesClientProps) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['notes', page, perPage, search],
     queryFn: () => fetchNotes(page, perPage, search),
-    placeholderData: keepPreviousData, 
+    placeholderData: keepPreviousData,
   });
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className={css.app}>
-        <header className={css.toolbar}>
-          <SearchBox onSearch={debouncedSearch} />
+    <div className={css.app}>
+      <header className={css.toolbar}>
+        <SearchBox onSearch={debouncedSearch} />
 
-          {data && data.totalPages > 1 && (
-            <Pagination
-              totalPages={data.totalPages}
-              currentPage={page}
-              onPageChange={setPage}
-            />
-          )}
-
-          <button className={css.button} onClick={() => setShowModal(true)}>
-            Create note +
-          </button>
-        </header>
-
-        {isLoading && <Loading />}
-        {isError && <Error message="Error fetching notes." />}
-        {data && data.notes.length === 0 && <p>No notes found.</p>}
-        {data && data.notes.length > 0 && (
-          <NoteList notes={data.notes} />
+        {data && data.totalPages > 1 && (
+          <Pagination
+            totalPages={data.totalPages}
+            currentPage={page}
+            onPageChange={setPage}
+          />
         )}
 
-        {showModal && (
-          <Modal onClose={() => setShowModal(false)}>
-            <NoteForm onClose={() => setShowModal(false)} />
-          </Modal>
-        )}
-      </div>
-    </QueryClientProvider>
+        <button className={css.button} onClick={() => setShowModal(true)}>
+          Create note +
+        </button>
+      </header>
+
+      {isLoading && <Loading />}
+      {isError && <Error message="Error fetching notes." />}
+      {data && data.notes.length === 0 && <p>No notes found.</p>}
+      {data && data.notes.length > 0 && <NoteList notes={data.notes} />}
+
+      {showModal && (
+        <Modal onClose={() => setShowModal(false)}>
+          <NoteForm onClose={() => setShowModal(false)} />
+        </Modal>
+      )}
+    </div>
   );
 }

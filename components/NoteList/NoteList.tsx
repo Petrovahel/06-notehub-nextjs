@@ -13,15 +13,14 @@ export default function NoteList({ notes }: NoteListProps) {
 
   const deleteMutation = useMutation<Note, Error, string>({
     mutationFn: (id: string) => deleteNote(id),
-    onSuccess: (_, id) => {
-      queryClient.setQueryData<Note[]>(['notes'], oldNotes =>
-        oldNotes ? oldNotes.filter(note => note.id !== id) : []
-      );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
     onError: (error) => {
       console.error('Failed to delete note:', error);
     },
   });
+
 
   if (!notes.length) return <p>No notes found.</p>;
 
